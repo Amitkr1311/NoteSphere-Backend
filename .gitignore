@@ -1,0 +1,4 @@
+/dist
+/node_modules
+/src/jwt_password*
+/src/Mongo_URL
