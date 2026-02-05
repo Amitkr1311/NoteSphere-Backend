@@ -1,23 +1,35 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from "express";
 import mongoose from "mongoose"
 import Jwt from "jsonwebtoken"
-import { JWT_PASSWORD } from "./jwt_password.js";
-import {LinkModel, userModel} from "./db.js";
-import { ContentModel } from "./db.js";
-import { userMiddleware } from "./middleware.js";
+import { JWT_PASSWORD } from "./jwt_password.ts";
+import {LinkModel, userModel} from "./db.ts";
+import { ContentModel } from "./db.ts";
+import { userMiddleware } from "./middleware.ts";
 import z from "zod";
 import bcrypt from "bcrypt";
-import { random } from "./random.js";
+import { random } from "./random.ts";
 import cors from 'cors';
-import path from "path";
+import ragRouter from "./routes/rag.ts";
+import { initializeVectorDB } from "./services/vectordbService.ts";
+import { indexContent, unindexContent } from "./services/ragService.ts";
 
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
+// Mount RAG chat endpoint
+app.use("/api/v1/chat", ragRouter);
+
 const port = 3000;
 
+
+app.get("/", (req, res) => {
+    res.send("Welcome!");
+});
 
 
 app.post("/api/v1/signup", async (req, res) => {
@@ -25,6 +37,7 @@ app.post("/api/v1/signup", async (req, res) => {
     // input validation 
     const required_body = z.object({
     username: z.string().min(3, "Username must be at least 3 chars"),
+    email: z.string().email("Invalid email address"),
     password: z.string().superRefine((val, ctx) => {
     if (val.length < 8)
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Must be 8+ characters" });
@@ -39,6 +52,10 @@ app.post("/api/v1/signup", async (req, res) => {
     if (!/[!@#$%^&*().,?<>|]/.test(val))
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Must include a special character" });
   }),
+    confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
 });
     // Parsing the required body.
     const parsedData = required_body.safeParse(req.body);
@@ -52,6 +69,7 @@ app.post("/api/v1/signup", async (req, res) => {
     }
 
     const username = req.body.username;
+    const email = req.body.email;
     const password = req.body.password;
 
     // -> hashing the password if error show the error code
@@ -61,6 +79,7 @@ app.post("/api/v1/signup", async (req, res) => {
     try {
         await userModel.create({
             username: username,
+            email: email,
             password: hashedPwd
         })
 
@@ -80,14 +99,14 @@ app.post("/api/v1/signin", async (req, res) => {
     const password = req.body.password;
 
     const response = await userModel.findOne({
-        username,
-        //password
+        $or: [{ username }, { email: username }]
     })
 
     if(!response){
         res.status(403).json({
             message:"user does not exist"
         })
+        return;
     }
 
     //@ts-ignore
@@ -116,7 +135,7 @@ app.post("/api/v1/content", userMiddleware, async (req, res) => {
     const type = req.body.type;
     const tags = req.body.tags
 
-    await ContentModel.create({
+    const content = await ContentModel.create({
         title,
         link,
         type,
@@ -124,6 +143,16 @@ app.post("/api/v1/content", userMiddleware, async (req, res) => {
         userId: req.userId,
         tags: tags || [],
     })
+
+    // 🆕 Automatically index for RAG
+    try {
+        // @ts-ignore
+        await indexContent(req.userId, content._id.toString(), title, link, title);
+        console.log(`✅ Content indexed for RAG: ${title}`);
+    } catch (ragError) {
+        console.error("⚠️ RAG indexing failed:", ragError);
+        // Don't fail the request if indexing fails
+    }
 
     res.json({
         message: "Content Added"
@@ -174,6 +203,15 @@ app.delete("/api/v1/content", userMiddleware, async (req, res) => {
       });
     }
 
+    // 🆕 Remove from RAG index
+    try {
+      await unindexContent(contentId);
+      console.log(`✅ Content removed from RAG: ${contentId}`);
+    } catch (ragError) {
+      console.error("⚠️ RAG removal failed:", ragError);
+      // Don't fail the request if unindexing fails
+    }
+
     res.json({ message: "Deleted successfully" });
    } catch (err) {
     res.status(500).json({ message: "Error deleting content", error: err });
@@ -216,7 +254,6 @@ app.post("/api/v1/brain/share", userMiddleware, async(req, res) => {
     }
 })
 
-// ✅ Final working backend route
 app.get("/api/v1/brain/:shareLink", async (req, res) => {
   try {
     const hash = req.params.shareLink;
@@ -249,6 +286,22 @@ app.get("/api/v1/brain/:shareLink", async (req, res) => {
 });
 
 
-app.listen(port, () => {
-  console.log(`App listening at http://localhost:${port}`);
-});
+// Initialize VectorDB and start server
+async function startServer() {
+  try {
+    // Initialize Pinecone index
+    console.log("🔧 Initializing VectorDB...");
+    await initializeVectorDB();
+    
+    app.listen(port, () => {
+      console.log(`✅ Server running at http://localhost:${port}`);
+      console.log(`📊 RAG Chat endpoint: http://localhost:${port}/api/v1/chat`);
+      console.log(`🤖 Ollama should be running at ${process.env.OLLAMA_API || 'http://localhost:11434'}`);
+    });
+  } catch (error) {
+    console.error("❌ Failed to start server:", error);
+    process.exit(1);
+  }
+}
+
+startServer();

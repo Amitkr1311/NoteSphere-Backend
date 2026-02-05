@@ -1,15 +1,18 @@
-import mongoose, { connect } from "mongoose";
-import { Schema , Model} from "mongoose";
-import { hash } from "zod";
-import { required } from "zod/mini";
-import { MONGO_URL } from "./Mongo_URL.js";
+import dotenv from 'dotenv';
+dotenv.config();
+
+import mongoose from "mongoose";
+import { Schema } from "mongoose";
+import  MONGO_URL  from "./Mongo_URL.ts";
 
 //mongoose.connect("<url>")
 mongoose.connect(`${MONGO_URL}`)
 
 const UserSchema = new Schema({
     username:{type: String, required:true, unique:true},
+    email:{type: String, required:true, unique:true},
     password:{type: String, required: true},
+    createdAt: {type: Date, default: Date.now}
 });
 
 export const userModel =  mongoose.model("users", UserSchema);

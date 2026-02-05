@@ -1,6 +1,6 @@
 import type { NextFunction, Request,Response } from "express";
 import jwt from "jsonwebtoken"
-import { JWT_PASSWORD } from "./jwt_password.js";
+import { JWT_PASSWORD } from "./jwt_password.ts";
 
 export const userMiddleware = (req:Request, res: Response, next: NextFunction) => {
     const header = req.headers["authorization"];
