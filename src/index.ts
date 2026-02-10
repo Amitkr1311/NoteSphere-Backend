@@ -33,7 +33,6 @@ app.get("/", (_req, res) => {
 
 
 app.post("/api/v1/signup", async (req, res) => {
-    // Todo -> zod the username and password
     // input validation 
     const required_body = z.object({
     username: z.string().min(3, "Username must be at least 3 chars"),
@@ -196,19 +195,6 @@ app.get("/api/v1/content", userMiddleware, async (req, res) => {
     })
 })
 
-// app.delete("/api/v1/content", userMiddleware, async (req, res) => {
-//     //@ts-ignore
-//     const contentId = req.body.contentId;
-//     await ContentModel.deleteMany({
-//         _id: new mongoose.Types.ObjectId(contentId),
-//         //@ts-ignore
-//         userId:req.userId
-//     })
-//     res.json({
-//         message:"Deleted"
-//     })
-// })
-
 app.delete("/api/v1/content", userMiddleware, async (req, res) => {
   try {
     const { contentId } = req.body;
@@ -267,7 +253,16 @@ app.post("/api/v1/brain/share", userMiddleware, async(req, res) => {
             return;
         }
         else{
-            const hash = random(10);
+            // Generate a unique hash that doesn't collide with existing ones
+            let hash = random(10);
+            let existingHash = await LinkModel.findOne({ hash });
+            
+            // Regenerate if collision detected (rare but possible)
+            while (existingHash) {
+                hash = random(10);
+                existingHash = await LinkModel.findOne({ hash });
+            }
+            
             await LinkModel.create({
                 //@ts-ignore
                 userId: req.userId,
