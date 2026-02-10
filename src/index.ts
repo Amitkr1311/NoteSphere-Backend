@@ -45,6 +45,9 @@ app.use("/api/v1/chat", ragRouter);
 
 const port = 3000;
 
+// Configuration constants
+const MAX_HASH_GENERATION_ATTEMPTS = 5;
+
 
 app.get("/", (_req, res) => {
     res.send("Welcome!");
@@ -129,8 +132,8 @@ app.post("/api/v1/signin", authLimiter, async (req, res) => {
         return;
     }
 
-    const username = req.body.username;
-    const password = req.body.password;
+    // Use validated data from parsedData.data
+    const { username, password } = parsedData.data;
 
     const response = await userModel.findOne({
         $or: [{ username }, { email: username }]
@@ -276,16 +279,15 @@ app.post("/api/v1/brain/share", apiLimiter, userMiddleware, async(req, res) => {
             let hash = random(10);
             let existingHash = await LinkModel.findOne({ hash });
             let attempts = 0;
-            const MAX_ATTEMPTS = 5;
             
             // Regenerate if collision detected (rare but possible)
-            while (existingHash && attempts < MAX_ATTEMPTS) {
+            while (existingHash && attempts < MAX_HASH_GENERATION_ATTEMPTS) {
                 hash = random(10);
                 existingHash = await LinkModel.findOne({ hash });
                 attempts++;
             }
             
-            if (attempts >= MAX_ATTEMPTS) {
+            if (attempts >= MAX_HASH_GENERATION_ATTEMPTS) {
                 res.status(500).json({
                     message: "Failed to generate unique share link. Please try again."
                 });
