@@ -5,7 +5,6 @@ import mongoose from "mongoose";
 import { Schema } from "mongoose";
 import  MONGO_URL  from "./mongo_url.ts";
 
-//mongoose.connect("<url>")
 mongoose.connect(`${MONGO_URL}`)
 
 const UserSchema = new Schema({
@@ -16,8 +15,6 @@ const UserSchema = new Schema({
 });
 
 export const userModel =  mongoose.model("users", UserSchema);
-
-// export default userModel;
 
 const ContentSchema = new Schema({
     title: String,
@@ -35,4 +32,3 @@ const LinkSchema = new Schema({
 })
 
 export const LinkModel = mongoose.model("Sharelinks", LinkSchema);
-//export default {ContentModel, userModel};
