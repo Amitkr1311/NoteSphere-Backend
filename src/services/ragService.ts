@@ -4,7 +4,7 @@ import {
   searchChunks,
   deleteChunksForContent,
 } from "./vectordbService.ts";
-import { generateAnswer, generateChatTitle, rerankResults } from "./llmService.ts";
+import { generateAnswer, generateChatTitle } from "./llmService.ts";
 import { extractContentFromUrl, createRichContent } from "./contentExtractor.ts";
 
 /**
@@ -22,14 +22,19 @@ export async function indexContent(
     console.log(`📄 Processing content: ${title}`);
     console.log(`🔗 Extracting content from: ${link}`);
     
-    // Extract full content from the URL
-    const extractedContent = await extractContentFromUrl(link);
+    // Extract full content from the URL (pass userId for rate limiting)
+    let extractedContent = await extractContentFromUrl(link, userId);
+    
+    // Use provided text as fallback if URL extraction failed or content too short
+    if (!extractedContent || extractedContent.length < 50) {
+      extractedContent = text || '';
+    }
     
     // Create rich content combining title, link, and extracted content
     const fullText = createRichContent(title, link, extractedContent);
     
     if (extractedContent && extractedContent.length > 50) {
-      console.log(`✅ Extracted ${extractedContent.length} characters from URL`);
+      console.log(`✅ Extracted ${extractedContent.length} characters from ${text ? 'provided text' : 'URL'}`);
     } else {
       console.log(`⚠️  Content extraction failed or content too short, using title only`);
     }
@@ -89,8 +94,16 @@ export async function answerQuestion(
     // 1. Create embedding for question
     const questionEmbedding = await createEmbedding(question);
 
-    // 2. Search VectorDB for relevant chunks (get more to ensure we have 5 unique posts)
-    const searchResults = await searchChunks(userId, questionEmbedding, 20);
+    // 2. Search VectorDB with intelligent fetching
+    // Start with fewer results; fetch more only if needed to reach 5 unique posts
+    let searchResults = await searchChunks(userId, questionEmbedding, 10);
+    
+    // If we got fewer than 5 unique posts, fetch more
+    if (new Set(searchResults.map(r => r.contentId)).size < 5) {
+      console.log('⚡ Need more results to reach 5 unique posts, fetching additional chunks...');
+      const additionalResults = await searchChunks(userId, questionEmbedding, 20);
+      searchResults = additionalResults; // Use the full batch
+    }
 
     if (searchResults.length === 0) {
       return {

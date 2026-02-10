@@ -1,4 +1,4 @@
-import { Pinecone } from "@pinecone-database/pinecone";
+import { Pinecone, type ScoredPineconeRecord } from "@pinecone-database/pinecone";
 
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY || "",
@@ -73,9 +73,9 @@ export async function searchChunks(
       includeMetadata: true,
     });
 
-    return results.matches.map((match:any) => ({
+    return results.matches.map((match: ScoredPineconeRecord) => ({
       id: match.id,
-      score: match.score,
+      score: match.score!,
       contentId: match.metadata?.contentId as string,
       text: match.metadata?.text as string,
       chunkIndex: match.metadata?.chunkIndex as number,
@@ -113,7 +113,7 @@ export async function deleteChunksForContent(contentId: string) {
 export async function initializeVectorDB() {
   try {
     const indexes = await pinecone.listIndexes();
-    const indexExists = indexes.indexes?.some((idx:any) => idx.name === INDEX_NAME);
+    const indexExists = indexes.indexes?.some((idx) => idx.name === INDEX_NAME);
 
     if (!indexExists) {
       console.log(`Creating index: ${INDEX_NAME}`);

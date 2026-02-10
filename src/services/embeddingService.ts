@@ -1,6 +1,6 @@
-import { pipeline } from "@xenova/transformers";
+import { pipeline, type FeatureExtractionPipeline } from "@xenova/transformers";
 
-let embeddingPipeline: any = null;
+let embeddingPipeline: FeatureExtractionPipeline | null = null;
 
 /**
  * Initialize embedding pipeline (lazy load)
@@ -11,7 +11,7 @@ async function getEmbeddingPipeline() {
     console.log("📚 Loading embedding model (first time takes ~30 seconds)...");
     embeddingPipeline = await pipeline(
       "feature-extraction",
-      "Xenova/all-MiniLM-L6-v2"
+      "Xenova/all-MiniLM-L6-v2",
     );
     console.log("✅ Embedding model loaded");
   }
@@ -25,6 +25,9 @@ async function getEmbeddingPipeline() {
 export async function createEmbedding(text: string): Promise<number[]> {
   try {
     const pipe = await getEmbeddingPipeline();
+    if (!pipe) {
+      throw new Error("Embedding pipeline not initialized");
+    }
     const result = await pipe(text, { pooling: "mean", normalize: true });
     return Array.from(result.data);
   } catch (error) {
@@ -35,18 +38,24 @@ export async function createEmbedding(text: string): Promise<number[]> {
 
 /**
  * Create embeddings for multiple texts
+ * Processes all texts in parallel for better performance
  * Runs completely locally, no API calls
  */
 export async function createEmbeddings(texts: string[]): Promise<number[][]> {
   try {
     const pipe = await getEmbeddingPipeline();
-    const embeddings: number[][] = [];
-
-    for (const text of texts) {
-      const result = await pipe(text, { pooling: "mean", normalize: true });
-      embeddings.push(Array.from(result.data));
+    if (!pipe) {
+      throw new Error("Embedding pipeline not initialized");
     }
-
+    
+    // Process all texts in parallel for better performance
+    const embeddingPromises = texts.map((text) =>
+      pipe(text, { pooling: "mean", normalize: true }).then((result) =>
+        Array.from(result.data)
+      )
+    );
+    
+    const embeddings = await Promise.all(embeddingPromises);
     return embeddings;
   } catch (error) {
     console.error("Error creating embeddings:", error);

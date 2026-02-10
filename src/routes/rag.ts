@@ -1,4 +1,5 @@
 import express,  { type Request, type Response } from "express";
+import { Types } from "mongoose";
 import { userMiddleware } from "../middleware.ts";
 import { answerQuestion, indexContent, unindexContent } from "../services/ragService.ts";
 
@@ -17,7 +18,14 @@ router.post("/", userMiddleware, async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Question cannot be empty" });
     }
 
-    const result = await answerQuestion(userId, question);
+    const trimmedQuestion = question.trim();
+    const MAX_QUESTION_LENGTH = 1000;
+    if (trimmedQuestion.length > MAX_QUESTION_LENGTH) {
+      return res.status(400).json({
+        error: `Question is too long. Maximum length is ${MAX_QUESTION_LENGTH} characters`,
+      });
+    }
+    const result = await answerQuestion(userId, trimmedQuestion);
 
     res.json({
       success: true,
@@ -83,6 +91,10 @@ router.delete(
 
       if(!contentId) {
         return res.status(400).json({ error: "Content ID is required" });
+      }
+
+      if (!Types.ObjectId.isValid(contentId)) {
+        return res.status(400).json({ error: "Invalid Content ID format" });
       }
 
       await unindexContent(contentId);

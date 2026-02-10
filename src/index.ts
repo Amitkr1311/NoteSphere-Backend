@@ -27,7 +27,7 @@ app.use("/api/v1/chat", ragRouter);
 const port = 3000;
 
 
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
     res.send("Welcome!");
 });
 
@@ -130,33 +130,43 @@ app.post("/api/v1/signin", async (req, res) => {
 })
 
 app.post("/api/v1/content", userMiddleware, async (req, res) => {
-    const title = req.body.title;
-    const link = req.body.link;
-    const type = req.body.type;
-    const tags = req.body.tags
-
-    const content = await ContentModel.create({
-        title,
-        link,
-        type,
-        // @ts-ignore
-        userId: req.userId,
-        tags: tags || [],
-    })
-
-    // 🆕 Automatically index for RAG
     try {
-        // @ts-ignore
-        await indexContent(req.userId, content._id.toString(), title, link, title);
-        console.log(`✅ Content indexed for RAG: ${title}`);
-    } catch (ragError) {
-        console.error("⚠️ RAG indexing failed:", ragError);
-        // Don't fail the request if indexing fails
-    }
+        const title = req.body.title;
+        const link = req.body.link;
+        const type = req.body.type;
+        const tags = req.body.tags
 
-    res.json({
-        message: "Content Added"
-    })
+        const content = await ContentModel.create({
+            title,
+            link,
+            type,
+            // @ts-ignore
+            userId: req.userId,
+            tags: tags || [],
+        })
+
+        // 🆕 Automatically index for RAG (required for content to be searchable)
+        try {
+            // @ts-ignore
+            await indexContent(req.userId, content._id.toString(), title, link, title);
+            console.log(`✅ Content indexed for RAG: ${title}`);
+        } catch (ragError) {
+            // RAG indexing is critical - delete the content if indexing fails
+            console.error("❌ RAG indexing failed, rolling back content creation:", ragError);
+            await ContentModel.deleteOne({ _id: content._id });
+            throw new Error(`Failed to index content for RAG: ${ragError instanceof Error ? ragError.message : 'Unknown error'}`);
+        }
+
+        res.json({
+            message: "Content Added"
+        })
+    } catch (error) {
+        console.error("Error creating content:", error);
+        res.status(500).json({
+            error: "Failed to create content",
+            message: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
 })
 
 app.get("/api/v1/content", userMiddleware, async (req, res) => {
@@ -188,9 +198,14 @@ app.delete("/api/v1/content", userMiddleware, async (req, res) => {
     const { contentId } = req.body;
 
     if (!contentId) {
-      return res.status(400).json({ message: "contentId is required" });
+      return res.status(400).json({ message: "contentId is required in request body" });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(contentId)) {
+      return res.status(400).json({ message: "Invalid Content ID format" });
+    }
+
+    // First delete from MongoDB
     const result = await ContentModel.deleteOne({
       _id: new mongoose.Types.ObjectId(contentId),
       // @ts-ignore
@@ -203,19 +218,23 @@ app.delete("/api/v1/content", userMiddleware, async (req, res) => {
       });
     }
 
-    // 🆕 Remove from RAG index
+    console.log(`✅ Content deleted from MongoDB: ${contentId}`);
+
+    // Then remove from RAG/Pinecone index
     try {
       await unindexContent(contentId);
-      console.log(`✅ Content removed from RAG: ${contentId}`);
+      console.log(`✅ Content removed from Pinecone: ${contentId}`);
     } catch (ragError) {
-      console.error("⚠️ RAG removal failed:", ragError);
-      // Don't fail the request if unindexing fails
+      console.error("⚠️  Pinecone deletion failed:", ragError);
+      // Don't fail the request if Pinecone deletion fails
+      // Content is already deleted from MongoDB
     }
 
-    res.json({ message: "Deleted successfully" });
-   } catch (err) {
+    res.json({ message: "Content deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting content:", err);
     res.status(500).json({ message: "Error deleting content", error: err });
-   }
+  }
 });
 
 
@@ -299,8 +318,15 @@ async function startServer() {
       console.log(`🤖 Ollama should be running at ${process.env.OLLAMA_API || 'http://localhost:11434'}`);
     });
   } catch (error) {
-    console.error("❌ Failed to start server:", error);
-    process.exit(1);
+    console.error("❌ Failed to initialize VectorDB:", error);
+    console.warn("⚠️  Starting server in degraded mode - RAG features will be unavailable");
+    console.warn("📌 Ensure Pinecone API key and connection are properly configured");
+    
+    // Start server anyway - RAG features won't work but other API endpoints will be available
+    app.listen(port, () => {
+      console.log(`✅ Server running at http://localhost:${port} (degraded mode)`);
+      console.log(`⚠️  RAG Chat features are currently unavailable`);
+    });
   }
 }
 

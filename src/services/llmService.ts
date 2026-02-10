@@ -41,6 +41,7 @@ Keep your answer helpful and well-structured (3-5 sentences).`;
       prompt: prompt,
       stream: false,
       temperature: 0.7,
+      timeout: 15000,
     });
 
     return response.data.response || "Unable to generate answer";
@@ -62,9 +63,15 @@ export async function generateChatTitle(question: string): Promise<string> {
       prompt: `Generate a very short (3-5 words) title for this question: "${question}". Only output the title, nothing else.`,
       stream: false,
       temperature: 0.5,
+      timeout: 15000,
     });
 
-    return response.data.response.substring(0, 50) || "Chat Conversation";
+    const title = response.data?.response;
+    if (!title || typeof title !== 'string') {
+      return "Chat Conversation";
+    }
+    
+    return title.substring(0, 50).trim() || "Chat Conversation";
   } catch (error) {
     console.error("Error generating title:", error);
     return question.substring(0, 50);
