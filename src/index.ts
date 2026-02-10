@@ -256,11 +256,21 @@ app.post("/api/v1/brain/share", userMiddleware, async(req, res) => {
             // Generate a unique hash that doesn't collide with existing ones
             let hash = random(10);
             let existingHash = await LinkModel.findOne({ hash });
+            let attempts = 0;
+            const MAX_ATTEMPTS = 5;
             
             // Regenerate if collision detected (rare but possible)
-            while (existingHash) {
+            while (existingHash && attempts < MAX_ATTEMPTS) {
                 hash = random(10);
                 existingHash = await LinkModel.findOne({ hash });
+                attempts++;
+            }
+            
+            if (attempts >= MAX_ATTEMPTS) {
+                res.status(500).json({
+                    message: "Failed to generate unique share link. Please try again."
+                });
+                return;
             }
             
             await LinkModel.create({
