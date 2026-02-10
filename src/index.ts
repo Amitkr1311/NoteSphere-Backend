@@ -74,7 +74,7 @@ app.post("/api/v1/signup", async (req, res) => {
 
     // -> hashing the password if error show the error code
 
-    const hashedPwd = await bcrypt.hash(password,5);
+    const hashedPwd = await bcrypt.hash(password,10);
 
     try {
         await userModel.create({
@@ -95,6 +95,22 @@ app.post("/api/v1/signup", async (req, res) => {
 
 
 app.post("/api/v1/signin", async (req, res) => {
+    // Input validation using Zod
+    const signinSchema = z.object({
+        username: z.string().min(1, "Username/email is required"),
+        password: z.string().min(1, "Password is required")
+    });
+
+    const parsedData = signinSchema.safeParse(req.body);
+
+    if (!parsedData.success) {
+        res.status(400).json({
+            message: "Invalid input",
+            error: parsedData.error
+        });
+        return;
+    }
+
     const username = req.body.username;
     const password = req.body.password;
 

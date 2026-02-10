@@ -97,7 +97,7 @@ async function fetchWithRetry(
       lastError = error as AxiosError;
       
       // Don't retry on client errors (4xx) except 429 (rate limit)
-      if (error instanceof axios.AxiosError) {
+      if (axios.isAxiosError(error)) {
         const status = error.response?.status;
         if (status && status >= 400 && status < 500 && status !== 429) {
           throw error;
