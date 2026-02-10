@@ -12,6 +12,7 @@ import z from "zod";
 import bcrypt from "bcrypt";
 import { random } from "./random.ts";
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import ragRouter from "./routes/rag.ts";
 import { initializeVectorDB } from "./services/vectordbService.ts";
 import { indexContent, unindexContent } from "./services/ragService.ts";
@@ -20,6 +21,24 @@ import { indexContent, unindexContent } from "./services/ragService.ts";
 const app = express();
 app.use(express.json());
 app.use(cors());
+
+// Rate limiter for general API endpoints
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Stricter rate limiter for authentication endpoints
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // limit each IP to 10 requests per windowMs
+    message: 'Too many authentication attempts, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
 // Mount RAG chat endpoint
 app.use("/api/v1/chat", ragRouter);
@@ -32,7 +51,7 @@ app.get("/", (_req, res) => {
 });
 
 
-app.post("/api/v1/signup", async (req, res) => {
+app.post("/api/v1/signup", authLimiter, async (req, res) => {
     // input validation 
     const required_body = z.object({
     username: z.string().min(3, "Username must be at least 3 chars"),
@@ -93,7 +112,7 @@ app.post("/api/v1/signup", async (req, res) => {
 })
 
 
-app.post("/api/v1/signin", async (req, res) => {
+app.post("/api/v1/signin", authLimiter, async (req, res) => {
     // Input validation using Zod
     const signinSchema = z.object({
         username: z.string().min(1, "Username/email is required"),
@@ -144,7 +163,7 @@ app.post("/api/v1/signin", async (req, res) => {
     }
 })
 
-app.post("/api/v1/content", userMiddleware, async (req, res) => {
+app.post("/api/v1/content", apiLimiter, userMiddleware, async (req, res) => {
     try {
         const title = req.body.title;
         const link = req.body.link;
@@ -184,7 +203,7 @@ app.post("/api/v1/content", userMiddleware, async (req, res) => {
     }
 })
 
-app.get("/api/v1/content", userMiddleware, async (req, res) => {
+app.get("/api/v1/content", apiLimiter, userMiddleware, async (req, res) => {
     //@ts-ignore
     const userId = req.userId;
     const content = await ContentModel.find({
@@ -195,7 +214,7 @@ app.get("/api/v1/content", userMiddleware, async (req, res) => {
     })
 })
 
-app.delete("/api/v1/content", userMiddleware, async (req, res) => {
+app.delete("/api/v1/content", apiLimiter, userMiddleware, async (req, res) => {
   try {
     const { contentId } = req.body;
 
@@ -240,7 +259,7 @@ app.delete("/api/v1/content", userMiddleware, async (req, res) => {
 });
 
 
-app.post("/api/v1/brain/share", userMiddleware, async(req, res) => {
+app.post("/api/v1/brain/share", apiLimiter, userMiddleware, async(req, res) => {
     const share = req.body.share;
 
     if(share) {
@@ -294,7 +313,7 @@ app.post("/api/v1/brain/share", userMiddleware, async(req, res) => {
     }
 })
 
-app.get("/api/v1/brain/:shareLink", async (req, res) => {
+app.get("/api/v1/brain/:shareLink", apiLimiter, async (req, res) => {
   try {
     const hash = req.params.shareLink;
     console.log("Received shareLink:", hash);

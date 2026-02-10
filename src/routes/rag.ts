@@ -1,15 +1,25 @@
 import express,  { type Request, type Response } from "express";
 import { Types } from "mongoose";
+import rateLimit from 'express-rate-limit';
 import { userMiddleware } from "../middleware.ts";
 import { answerQuestion, indexContent, unindexContent } from "../services/ragService.ts";
 
 const router = express.Router();
 
+// Rate limiter for RAG endpoints (more permissive for chat)
+const ragLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 50, // limit each IP to 50 requests per windowMs
+    message: 'Too many AI requests, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 /**
  * Chat endpoint - Answer user questions about their content
  * POST /api/v1/chat
  */
-router.post("/", userMiddleware, async (req: Request, res: Response) => {
+router.post("/", ragLimiter, userMiddleware, async (req: Request, res: Response) => {
   try {
     const { question } = req.body;
     const userId = (req as any).userId;
@@ -48,6 +58,7 @@ router.post("/", userMiddleware, async (req: Request, res: Response) => {
  */
 router.post(
   "/index",
+  ragLimiter,
   userMiddleware,
   async (req: Request, res: Response) => {
     try {
@@ -84,6 +95,7 @@ router.post(
  */
 router.delete(
   "/:contentId",
+  ragLimiter,
   userMiddleware,
   async (req: Request, res: Response) => {
     try {
