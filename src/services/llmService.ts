@@ -63,7 +63,7 @@ Formatting rules:
 Keep the response concise and focused on the saved posts.`;
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
       {
         contents: [{
           parts: [{
@@ -76,13 +76,16 @@ Keep the response concise and focused on the saved posts.`;
         }
       },
       {
+        headers: {
+          "x-goog-api-key": GEMINI_API_KEY,
+        },
         timeout: 15000,
       }
     );
 
     return response.data.candidates?.[0]?.content?.parts?.[0]?.text || "Unable to generate answer";
-  } catch (error) {
-    console.error("Error generating answer:", error);
+  } catch (error: any) {
+    console.error("Error generating answer:", error.message || "Unknown error");
     throw new Error(
       "Failed to generate answer. Check your GEMINI_API_KEY and internet connection."
     );
@@ -99,7 +102,7 @@ export async function generateChatTitle(question: string): Promise<string> {
     }
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
       {
         contents: [{
           parts: [{
@@ -112,6 +115,9 @@ export async function generateChatTitle(question: string): Promise<string> {
         }
       },
       {
+        headers: {
+          "x-goog-api-key": GEMINI_API_KEY,
+        },
         timeout: 15000,
       }
     );
@@ -122,8 +128,8 @@ export async function generateChatTitle(question: string): Promise<string> {
     }
     
     return title.substring(0, 50).trim() || "Chat Conversation";
-  } catch (error) {
-    console.error("Error generating title:", error);
+  } catch (error: any) {
+    console.error("Error generating title:", error.message || "Unknown error");
     return question.substring(0, 50);
   }
 }

@@ -256,7 +256,7 @@ export async function answerQuestion(
       matchedContentIds: contextForLLM.map((item) => item.contentId),
     };
   } catch (error) {
-    console.error("Error in RAG pipeline:", error);
+    console.error("Error in RAG pipeline:", error instanceof Error ? error.message : "Unknown error");
     throw new Error("Failed to process question");
   }
 }
@@ -268,7 +268,7 @@ export async function unindexContent(contentId: string) {
   try {
     await deleteChunksForContent(contentId);
   } catch (error) {
-    console.error("Error unindexing content:", error);
+    console.error("Error unindexing content:", error instanceof Error ? error.message : "Unknown error");
     throw new Error("Failed to remove content from RAG");
   }
 }

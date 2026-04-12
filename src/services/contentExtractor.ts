@@ -193,7 +193,7 @@ export async function extractContentFromUrl(url: string, userId?: string): Promi
       console.warn(`Security check failed: ${error.message}`);
       throw error; // Re-throw security errors
     }
-    console.error('Content extraction failed:', error);
+    console.error('Content extraction failed:', error instanceof Error ? error.message : 'Unknown error');
     return ''; // Return empty if extraction fails
   }
 }
