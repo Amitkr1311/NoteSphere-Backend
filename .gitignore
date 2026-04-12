@@ -16,9 +16,9 @@ build/
 .env.production.local
 
 # Sensitive files
-/src/jwt_password*
-/src/mongo_url*
-/src/Mongo_URL*
+# /src/jwt_password*
+# /src/mongo_url*
+# /src/Mongo_URL*
 
 # Logs
 logs/

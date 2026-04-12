@@ -3,10 +3,7 @@ import "./env.ts";
 import express from "express";
 import mongoose from "mongoose";
 import Jwt from "jsonwebtoken";
-const JWT_PASSWORD = process.env.JWT_PASSWORD;
-if (!JWT_PASSWORD) {
-  throw new Error("JWT_PASSWORD is missing. Set it in your environment variables.");
-}
+import { JWT_PASSWORD } from "./jwt_password.ts";
 import { connectDatabase, LinkModel, userModel } from "./db.ts";
 import { ContentModel } from "./db.ts";
 import { userMiddleware } from "./middleware.ts";
@@ -172,7 +169,10 @@ app.post("/api/v1/signup", authLimiter, async (req, res) => {
         .status(409)
         .json({ message: `An account with this ${field} already exists` });
     } else {
-      console.error("Signup error:", e instanceof Error ? e.message : "Unknown error");
+      console.error(
+        "Signup error:",
+        e instanceof Error ? e.message : "Unknown error",
+      );
       res
         .status(500)
         .json({ message: "Something went wrong. Please try again." });
@@ -275,7 +275,10 @@ app.post("/api/v1/content", apiLimiter, userMiddleware, async (req, res) => {
       message: "Content Added",
     });
   } catch (error) {
-    console.error("Error creating content:", error instanceof Error ? error.message : "Unknown error");
+    console.error(
+      "Error creating content:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
     res.status(500).json({
       error: "Failed to create content",
       message: error instanceof Error ? error.message : "Unknown error",
@@ -323,14 +326,20 @@ app.delete("/api/v1/content", apiLimiter, userMiddleware, async (req, res) => {
     try {
       await unindexContent(contentId);
     } catch (ragError) {
-      console.error("⚠️  Pinecone deletion failed:", ragError instanceof Error ? ragError.message : "Unknown error");
+      console.error(
+        "⚠️  Pinecone deletion failed:",
+        ragError instanceof Error ? ragError.message : "Unknown error",
+      );
       // Don't fail the request if Pinecone deletion fails
       // Content is already deleted from MongoDB
     }
 
     res.json({ message: "Content deleted successfully" });
   } catch (err) {
-    console.error("Error deleting content:", err instanceof Error ? err.message : "Unknown error");
+    console.error(
+      "Error deleting content:",
+      err instanceof Error ? err.message : "Unknown error",
+    );
     res.status(500).json({ message: "Error deleting content", error: err });
   }
 });
@@ -343,7 +352,9 @@ app.post(
     const share = req.body.share;
 
     if (share) {
-      const existingLink = await LinkModel.findOne({ userId: req.userId as string });
+      const existingLink = await LinkModel.findOne({
+        userId: req.userId as string,
+      });
       if (existingLink) {
         res.json({
           hash: existingLink.hash,
@@ -410,7 +421,10 @@ app.get("/api/v1/brain/:shareLink", apiLimiter, async (req, res) => {
       contents,
     });
   } catch (err) {
-    console.error("Server error:", err instanceof Error ? err.message : "Unknown error");
+    console.error(
+      "Server error:",
+      err instanceof Error ? err.message : "Unknown error",
+    );
     res.status(500).json({ message: "server error" });
   }
 });
