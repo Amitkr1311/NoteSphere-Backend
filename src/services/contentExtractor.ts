@@ -1,3 +1,4 @@
+import "../env.ts";
 import axios, { type AxiosError } from 'axios';
 import * as cheerio from 'cheerio';
 
@@ -37,7 +38,7 @@ function validateUrl(url: string): void {
     if (/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) || /^[\da-f:]+$/.test(hostname)) {
       for (const pattern of BLOCKED_IP_PATTERNS) {
         if (pattern.test(hostname)) {
-          throw new Error(`⛔ Access to private IP address blocked: ${hostname}`);
+          throw new Error(`Access to private IP address blocked: ${hostname}`);
         }
       }
     }
@@ -46,16 +47,16 @@ function validateUrl(url: string): void {
     if (ALLOWED_DOMAINS.length > 0) {
       const isAllowed = ALLOWED_DOMAINS.some(domain => hostname === domain || hostname.endsWith('.' + domain));
       if (!isAllowed) {
-        throw new Error(`⛔ Domain not in whitelist: ${hostname}`);
+        throw new Error(`Domain not in whitelist: ${hostname}`);
       }
     }
     
     // Check for suspicious protocols
     if (!['http:', 'https:'].includes(urlObj.protocol)) {
-      throw new Error(`⛔ Only HTTP(S) protocols are allowed, got: ${urlObj.protocol}`);
+      throw new Error(`Only HTTP(S) protocols are allowed, got: ${urlObj.protocol}`);
     }
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith('⛔')) {
+    if (error instanceof Error && error.message.startsWith('Access to') || error instanceof Error && error.message.startsWith('Domain not') || error instanceof Error && error.message.startsWith('Only HTTP')) {
       throw error;
     }
     throw new Error(`Invalid URL format: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -71,7 +72,7 @@ function checkRateLimit(userId: string): void {
   
   if (userLimits && userLimits.resetTime > now) {
     if (userLimits.count >= RATE_LIMIT_REQUESTS) {
-      throw new Error(`⏱️  Rate limit exceeded. Max ${RATE_LIMIT_REQUESTS} requests per minute.`);
+      throw new Error(`Rate limit exceeded. Max ${RATE_LIMIT_REQUESTS} requests per minute.`);
     }
     userLimits.count++;
   } else {
@@ -111,7 +112,6 @@ async function fetchWithRetry(
       
       // Calculate exponential backoff delay
       const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 100;
-      console.log(`⏳ Retry attempt ${attempt + 1}/${maxRetries} after ${Math.round(delay)}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
@@ -189,7 +189,7 @@ export async function extractContentFromUrl(url: string, userId?: string): Promi
     // For general web pages
     return await extractWebPageContent(url);
   } catch (error) {
-    if (error instanceof Error && (error.message.startsWith('⛔') || error.message.startsWith('⏱️'))) {
+    if (error instanceof Error && (error.message.includes('blocked') || error.message.includes('whitelist') || error.message.includes('Rate limit') || error.message.includes('HTTP'))) {
       console.warn(`Security check failed: ${error.message}`);
       throw error; // Re-throw security errors
     }
@@ -221,15 +221,10 @@ async function extractTwitterContent(url: string): Promise<string> {
     if (tweetId) {
       const apiClient = getTwitterApiClient();
       if (apiClient) {
-        console.log('🐦 Attempting extraction via Twitter API v2...');
         const tweetText = await apiClient.getTweet(tweetId);
         if (tweetText) {
-          console.log('✅ Tweet extracted via API');
           return tweetText;
         }
-        console.log('⚠️  Twitter API returned empty, trying fallback methods');
-      } else {
-        console.log('💡 Tip: Set TWITTER_BEARER_TOKEN to enable official Twitter API extraction');
       }
     }
     
@@ -251,7 +246,7 @@ async function extractTwitterContent(url: string): Promise<string> {
       '';
     
     if (!tweetText) {
-      console.warn('⚠️  Twitter/X extraction returned empty - consider setting TWITTER_BEARER_TOKEN for reliable extraction');
+      console.warn('Twitter/X extraction returned empty - consider setting TWITTER_BEARER_TOKEN for reliable extraction');
     }
     
     return tweetText.trim();
@@ -298,7 +293,6 @@ async function extractWebPageContent(url: string): Promise<string> {
     // Limit to 15000 characters (enough for good context)
     return content.substring(0, 15000);
   } catch (error) {
-    console.log('Web page extraction failed:', error instanceof Error ? error.message : 'Unknown error');
     return '';
   }
 }

@@ -22,7 +22,7 @@ const ragLimiter = rateLimit({
 router.post("/", ragLimiter, userMiddleware, async (req: Request, res: Response) => {
   try {
     const { question } = req.body;
-    const userId = (req as any).userId;
+    const userId = req.userId as string;
 
     if (!question || question.trim().length === 0) {
       return res.status(400).json({ error: "Question cannot be empty" });
@@ -40,8 +40,8 @@ router.post("/", ragLimiter, userMiddleware, async (req: Request, res: Response)
     res.json({
       success: true,
       answer: result.answer,
-      sources: result.sources,
       title: result.title,
+      matchedContentIds: result.matchedContentIds,
     });
   } catch (error) {
     console.error("Chat error:", error);
@@ -63,7 +63,7 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const { contentId, title, link, text } = req.body;
-      const userId = (req as any).userId;
+      const userId = req.userId as string;
 
       if (!contentId || !title) {
         return res.status(400).json({ error: "Missing required fields" });

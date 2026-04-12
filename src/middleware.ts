@@ -1,5 +1,5 @@
 import type { NextFunction, Request,Response } from "express";
-import jwt from "jsonwebtoken"
+import jwt, { type JwtPayload } from "jsonwebtoken"
 import { JWT_PASSWORD } from "./jwt_password.ts";
 
 export const userMiddleware = (req:Request, res: Response, next: NextFunction) => {
@@ -13,10 +13,9 @@ export const userMiddleware = (req:Request, res: Response, next: NextFunction) =
     }
 
     try {
-        const decoded = jwt.verify(header as string, JWT_PASSWORD)
+        const decoded = jwt.verify(header as string, JWT_PASSWORD) as JwtPayload;
         // decoded is the user_id of the use from the database
-        if(decoded) {
-            //@ts-ignore
+        if(decoded && decoded.id) {
             req.userId = decoded.id;
             next();
         }

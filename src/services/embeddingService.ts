@@ -8,12 +8,10 @@ let embeddingPipeline: FeatureExtractionPipeline | null = null;
  */
 async function getEmbeddingPipeline() {
   if (!embeddingPipeline) {
-    console.log("📚 Loading embedding model (first time takes ~30 seconds)...");
     embeddingPipeline = await pipeline(
       "feature-extraction",
       "Xenova/all-MiniLM-L6-v2",
     );
-    console.log("✅ Embedding model loaded");
   }
   return embeddingPipeline;
 }
