@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { Schema } from "mongoose";
-import  MONGO_URL  from "./mongo_url.ts";
+const MONGO_URL = process.env.MONGO_URL;
 
 function getMongoHostFromUrl(connectionString: string): string | null {
     try {

@@ -3,7 +3,10 @@ import "./env.ts";
 import express from "express";
 import mongoose from "mongoose";
 import Jwt from "jsonwebtoken";
-import { JWT_PASSWORD } from "./jwt_password.ts";
+const JWT_PASSWORD = process.env.JWT_PASSWORD;
+if (!JWT_PASSWORD) {
+  throw new Error("JWT_PASSWORD is missing. Set it in your environment variables.");
+}
 import { connectDatabase, LinkModel, userModel } from "./db.ts";
 import { ContentModel } from "./db.ts";
 import { userMiddleware } from "./middleware.ts";
