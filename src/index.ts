@@ -139,7 +139,7 @@ app.post("/api/v1/signup", authLimiter, async (req, res) => {
   }
 
   const username = req.body.username;
-  const email = req.body.email;
+  const email = req.body.email?.toLowerCase();
   const password = req.body.password;
 
   // Explicit check for existing email before inserting
@@ -180,7 +180,7 @@ app.post("/api/v1/signup", authLimiter, async (req, res) => {
 app.post("/api/v1/signin", authLimiter, async (req, res) => {
   // Input validation using Zod
   const signinSchema = z.object({
-    username: z.string().min(1, "Username/email is required"),
+    email: z.string().email("Invalid email format"),
     password: z.string().min(1, "Password is required"),
   });
 
@@ -195,10 +195,11 @@ app.post("/api/v1/signin", authLimiter, async (req, res) => {
   }
 
   // Use validated data from parsedData.data
-  const { username, password } = parsedData.data;
+  const email = parsedData.data.email.toLowerCase();
+  const password = parsedData.data.password;
 
   const response = await userModel.findOne({
-    $or: [{ username }, { email: username }],
+    email,
   });
 
   if (!response) {

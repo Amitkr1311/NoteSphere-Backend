@@ -25,6 +25,10 @@ export async function generateAnswer(
       throw new Error("GEMINI_API_KEY is not set in environment variables");
     }
 
+    if (!GEMINI_MODEL) {
+      throw new Error("GEMINI_MODEL is not set in environment variables (e.g., gemini-1.5-flash)");
+    }
+
     const contextText = context
       .map((c, idx) => {
         const title = c.title || "Saved post";
@@ -90,7 +94,7 @@ Keep the response concise and focused on the saved posts.`;
  */
 export async function generateChatTitle(question: string): Promise<string> {
   try {
-    if (!GEMINI_API_KEY) {
+    if (!GEMINI_API_KEY || !GEMINI_MODEL) {
       return question.substring(0, 50);
     }
 
