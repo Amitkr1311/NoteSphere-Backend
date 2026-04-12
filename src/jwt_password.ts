@@ -1,3 +1,7 @@
 import "./env.ts";
 
-export const JWT_PASSWORD = process.env.JWT_PASSWORD;
+const val = process.env.JWT_PASSWORD;
+if (!val) {
+  throw new Error("JWT_PASSWORD is not defined in environment variables");
+}
+export const JWT_PASSWORD = val;

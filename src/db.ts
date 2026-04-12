@@ -15,10 +15,6 @@ function getMongoHostFromUrl(connectionString: string): string | null {
 }
 
 export async function connectDatabase(): Promise<void> {
-  if (!MONGO_URL) {
-    throw new Error("MONGO_URL is missing. Set it in your .env file.");
-  }
-
   try {
     await mongoose.connect(MONGO_URL, {
       serverSelectionTimeoutMS: 10000,
