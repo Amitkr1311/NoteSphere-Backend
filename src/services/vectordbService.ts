@@ -1,16 +1,28 @@
+import "../env.ts";
 import { Pinecone, type ScoredPineconeRecord } from "@pinecone-database/pinecone";
 
-const pinecone = new Pinecone({
-  apiKey: process.env.PINECONE_API_KEY || "",
-});
+const PINECONE_API_KEY = process.env.PINECONE_API_KEY?.trim() || "";
+let pineconeClient: Pinecone | null = null;
 
 const INDEX_NAME = process.env.PINECONE_INDEX_NAME || "brainly";
+
+function getPineconeClient(): Pinecone {
+  if (!PINECONE_API_KEY) {
+    throw new Error("PINECONE_API_KEY is missing in environment variables");
+  }
+
+  if (!pineconeClient) {
+    pineconeClient = new Pinecone({ apiKey: PINECONE_API_KEY });
+  }
+
+  return pineconeClient;
+}
 
 /**
  * Get Pinecone index
  */
 async function getIndex() {
-  return pinecone.Index(INDEX_NAME);
+  return getPineconeClient().Index(INDEX_NAME);
 }
 
 /**
@@ -37,7 +49,6 @@ export async function upsertChunks(
     }));
 
     await index.upsert({ records: vectors });
-    console.log(`✅ Upserted ${vectors.length} chunks for content ${contentId}`);
   } catch (error) {
     console.error("Error upserting chunks:", error);
     throw new Error("Failed to upsert chunks to VectorDB");
@@ -99,8 +110,6 @@ export async function deleteChunksForContent(contentId: string) {
         contentId: { $eq: contentId },
       },
     });
-
-    console.log(`🗑️  Deleted chunks for content: ${contentId}`);
   } catch (error) {
     console.error("Error deleting chunks:", error);
     throw new Error("Failed to delete chunks from VectorDB");
@@ -112,11 +121,11 @@ export async function deleteChunksForContent(contentId: string) {
  */
 export async function initializeVectorDB() {
   try {
+    const pinecone = getPineconeClient();
     const indexes = await pinecone.listIndexes();
     const indexExists = indexes.indexes?.some((idx) => idx.name === INDEX_NAME);
 
     if (!indexExists) {
-      console.log(`Creating index: ${INDEX_NAME}`);
       await pinecone.createIndex({
         name: INDEX_NAME,
         dimension: 384, // dimension for all-MiniLM-L6-v2
@@ -129,12 +138,11 @@ export async function initializeVectorDB() {
         },
         waitUntilReady: true,
       });
-      console.log(`✅ Index created: ${INDEX_NAME}`);
-    } else {
-      console.log(`✅ Index already exists: ${INDEX_NAME}`);
     }
   } catch (error) {
     console.error("Error initializing VectorDB:", error);
-    throw new Error("Failed to initialize VectorDB");
+    throw new Error(
+      `Failed to initialize VectorDB: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }

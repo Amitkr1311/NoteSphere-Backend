@@ -8,12 +8,10 @@ let embeddingPipeline: FeatureExtractionPipeline | null = null;
  */
 async function getEmbeddingPipeline() {
   if (!embeddingPipeline) {
-    console.log("📚 Loading embedding model (first time takes ~30 seconds)...");
     embeddingPipeline = await pipeline(
       "feature-extraction",
       "Xenova/all-MiniLM-L6-v2",
     );
-    console.log("✅ Embedding model loaded");
   }
   return embeddingPipeline;
 }
@@ -31,7 +29,7 @@ export async function createEmbedding(text: string): Promise<number[]> {
     const result = await pipe(text, { pooling: "mean", normalize: true });
     return Array.from(result.data);
   } catch (error) {
-    console.error("Error creating embedding:", error);
+    console.error("Error creating embedding:", error instanceof Error ? error.message : "Unknown error");
     throw new Error("Failed to create embedding");
   }
 }
@@ -58,7 +56,7 @@ export async function createEmbeddings(texts: string[]): Promise<number[][]> {
     const embeddings = await Promise.all(embeddingPromises);
     return embeddings;
   } catch (error) {
-    console.error("Error creating embeddings:", error);
+    console.error("Error creating embeddings:", error instanceof Error ? error.message : "Unknown error");
     throw new Error("Failed to create embeddings");
   }
 }

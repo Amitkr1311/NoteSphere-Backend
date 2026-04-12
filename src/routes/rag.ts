@@ -1,18 +1,28 @@
 import express,  { type Request, type Response } from "express";
 import { Types } from "mongoose";
+import rateLimit from 'express-rate-limit';
 import { userMiddleware } from "../middleware.ts";
 import { answerQuestion, indexContent, unindexContent } from "../services/ragService.ts";
 
 const router = express.Router();
 
+// Rate limiter for RAG endpoints (more permissive for chat)
+const ragLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 50, // limit each IP to 50 requests per windowMs
+    message: 'Too many AI requests, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 /**
  * Chat endpoint - Answer user questions about their content
  * POST /api/v1/chat
  */
-router.post("/", userMiddleware, async (req: Request, res: Response) => {
+router.post("/", ragLimiter, userMiddleware, async (req: Request, res: Response) => {
   try {
     const { question } = req.body;
-    const userId = (req as any).userId;
+    const userId = req.userId as string;
 
     if (!question || question.trim().length === 0) {
       return res.status(400).json({ error: "Question cannot be empty" });
@@ -30,8 +40,8 @@ router.post("/", userMiddleware, async (req: Request, res: Response) => {
     res.json({
       success: true,
       answer: result.answer,
-      sources: result.sources,
       title: result.title,
+      matchedContentIds: result.matchedContentIds,
     });
   } catch (error) {
     console.error("Chat error:", error);
@@ -48,11 +58,12 @@ router.post("/", userMiddleware, async (req: Request, res: Response) => {
  */
 router.post(
   "/index",
+  ragLimiter,
   userMiddleware,
   async (req: Request, res: Response) => {
     try {
       const { contentId, title, link, text } = req.body;
-      const userId = (req as any).userId;
+      const userId = req.userId as string;
 
       if (!contentId || !title) {
         return res.status(400).json({ error: "Missing required fields" });
@@ -84,6 +95,7 @@ router.post(
  */
 router.delete(
   "/:contentId",
+  ragLimiter,
   userMiddleware,
   async (req: Request, res: Response) => {
     try {
