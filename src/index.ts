@@ -11,7 +11,7 @@ import z from "zod";
 import bcrypt from "bcrypt";
 import { random } from "./random.ts";
 import cors from "cors";
-import rateLimit from "express-rate-limit";
+import { rateLimit } from "express-rate-limit";
 import ragRouter from "./routes/rag.ts";
 import { initializeVectorDB } from "./services/vectordbService.ts";
 import { indexContent, unindexContent } from "./services/ragService.ts";
