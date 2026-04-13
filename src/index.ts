@@ -74,7 +74,7 @@ const authLimiter = rateLimit({
 // Mount RAG chat endpoint
 app.use("/api/v1/chat", ragRouter);
 
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // Configuration constants
 const MAX_HASH_GENERATION_ATTEMPTS = 5;
@@ -441,7 +441,8 @@ async function startServer() {
     console.error(
       "Check MONGO_URL in .env and ensure your Atlas cluster DNS/network settings are valid.",
     );
-    process.exit(1);
+    // In serverless, don't exit the process, just throw let the handler deal with it
+    throw error;
   }
 
   let ragAvailable = true;
@@ -467,4 +468,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// For local development
+if (process.env.NODE_ENV !== "production") {
+  startServer();
+}
+
+export default app;
