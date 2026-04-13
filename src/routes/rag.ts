@@ -1,6 +1,6 @@
 import express,  { type Request, type Response } from "express";
 import { Types } from "mongoose";
-import rateLimit from 'express-rate-limit';
+import { rateLimit } from 'express-rate-limit';
 import { userMiddleware } from "../middleware.ts";
 import { answerQuestion, indexContent, unindexContent } from "../services/ragService.ts";
 
